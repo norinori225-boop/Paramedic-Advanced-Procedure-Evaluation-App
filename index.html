@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>特定行為評価</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy: #1a3a5c;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --green: #16a34a;
+      --green-dark: #15803d;
+      --orange: #ea580c;
+      --red: #dc2626;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-400: #9ca3af;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --white: #ffffff;
+      --active-bg: #fef08a;
+      --active-border: #ca8a04;
+      --active-text: #713f12;
+      --header-h: 140px;
+      --log-h: 200px;
+    }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      background: #f0f4f8;
+      color: var(--gray-700);
+      overflow: hidden;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== FIXED HEADER ===== */
+    #header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: var(--navy);
+      z-index: 100;
+      padding: 8px 8px 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* Timer row */
+    #timer-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    #timer-display {
+      flex: 1;
+      font-size: 22px;
+      font-weight: 700;
+      color: #7dd3fc;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 1px;
+      min-width: 90px;
+    }
+
+    #btn-start {
+      flex: 2;
+      padding: 10px 8px;
+      font-size: 15px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: var(--green);
+      color: var(--white);
+      transition: all 0.15s;
+      line-height: 1.2;
+    }
+    #btn-start:active { transform: scale(0.96); }
+    #btn-start.running { background: var(--orange); }
+    #btn-start.stopped { background: var(--red); }
+
+    #btn-reset {
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #60a5fa;
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+      color: #93c5fd;
+      transition: all 0.15s;
+    }
+    #btn-reset:active { background: rgba(96,165,250,0.2); }
+
+    /* milestone buttons row */
+    #milestone-row {
+      display: flex;
+      gap: 4px;
+    }
+
+    .ms-btn {
+      flex: 1;
+      padding: 8px 2px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.1);
+      color: var(--white);
+      transition: all 0.15s;
+      line-height: 1.2;
+      text-align: center;
+    }
+    .ms-btn:active { transform: scale(0.93); }
+    .ms-btn.pressed {
+      background: var(--active-bg);
+      border-color: var(--active-border);
+      color: var(--active-text);
+    }
+
+    /* ===== SCROLLABLE MIDDLE ===== */
+    #main {
+      position: fixed;
+      top: var(--header-h);
+      left: 0;
+      right: 0;
+      bottom: var(--log-h);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 10px 8px 4px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .act-btn {
+      flex: 1 1 calc(33.33% - 6px);
+      min-width: 80px;
+      padding: 12px 6px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 2px solid var(--gray-200);
+      border-radius: 10px;
+      cursor: pointer;
+      background: var(--white);
+      color: var(--gray-700);
+      transition: all 0.15s;
+      line-height: 1.3;
+      text-align: center;
+    }
+    .act-btn:active { transform: scale(0.94); }
+    .act-btn.pressed {
+      background: var(--active-bg);
+      border-color: var(--active-border);
+      color: var(--active-text);
+    }
+
+    /* wide 2-col buttons */
+    .btn-2col .act-btn {
+      flex: 1 1 calc(50% - 6px);
+    }
+
+    /* separator label */
+    .group-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 2px 0 3px;
+      padding-left: 2px;
+    }
+
+    /* ===== LOG PANEL ===== */
+    #log-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--log-h);
+      background: var(--gray-700);
+      border-top: 2px solid #4b5563;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #log-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 10px;
+      background: #1f2937;
+      flex-shrink: 0;
+    }
+    #log-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #9ca3af;
+      letter-spacing: 0.5px;
+    }
+    #btn-clear-log {
+      font-size: 11px;
+      color: #6b7280;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    #log-list {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 8px;
+    }
+
+    .log-entry {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      padding: 3px 0;
+      border-bottom: 1px solid #374151;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .log-entry:last-child { border-bottom: none; }
+
+    .log-time {
+      font-variant-numeric: tabular-nums;
+      color: #60a5fa;
+      white-space: nowrap;
+      font-size: 11px;
+      flex-shrink: 0;
+      min-width: 46px;
+    }
+    .log-content {
+      color: #e5e7eb;
+      flex: 1;
+    }
+    .log-interval {
+      color: #fbbf24;
+      font-size: 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .log-count {
+      color: #f87171;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== FIXED HEADER ===== -->
+<div id="header">
+  <div id="timer-row">
+    <div id="timer-display">00:00</div>
+    <button id="btn-start" onclick="handleStart()">▶ 訓練開始</button>
+    <button id="btn-reset" onclick="handleReset()">リセット</button>
+  </div>
+  <div id="milestone-row">
+    <button class="ms-btn" data-key="接触" onclick="handleMilestone(this)">接触</button>
+    <button class="ms-btn" data-key="離脱" onclick="handleMilestone(this)">離脱</button>
+    <button class="ms-btn" data-key="収容" onclick="handleMilestone(this)">収容</button>
+    <button class="ms-btn" data-key="現発" onclick="handleMilestone(this)">現発</button>
+    <button class="ms-btn" data-key="病着" onclick="handleMilestone(this)">病着</button>
+  </div>
+</div>
+
+<!-- ===== SCROLLABLE ACTION BUTTONS ===== -->
+<div id="main">
+
+  <div class="group-label">評価</div>
+  <div class="btn-group">
+    <button class="act-btn" data-key="ABC評価" onclick="handleAction(this)">ABC評価</button>
+    <button class="act-btn" data-key="バイタル測定" onclick="handleAction(this)">バイタル測定</button>
+    <button class="act-btn" data-key="ECG装着" onclick="handleAction(this)">ECG装着</button>
+  </div>
+
+  <div class="group-label">処置・連絡</div>
+  <div class="btn-group">
+    <button class="act-btn" data-key="TEL" onclick="handleAction(this)">TEL</button>
+    <button class="act-btn" data-key="AEDパッド装着" onclick="handleAction(this)">AEDパッド装着</button>
+    <button class="act-btn" data-key="除細動" onclick="handleAction(this)">除細動</button>
+    <button class="act-btn" data-key="酸素投与" onclick="handleAction(this)">酸素投与</button>
+    <button class="act-btn" data-key="補助換気" onclick="handleAction(this)">補助換気</button>
+    <button class="act-btn" data-key="体位管理" onclick="handleAction(this)">体位管理</button>
+  </div>
+
+  <div class="group-label">蘇生</div>
+  <div class="btn-group btn-2col">
+    <button class="act-btn" data-key="胸骨圧迫" onclick="handleAction(this)">胸骨圧迫</button>
+    <button class="act-btn" data-key="人工呼吸" onclick="handleAction(this)">人工呼吸</button>
+  </div>
+
+  <div class="group-label">LT挿管</div>
+  <div class="btn-group btn-2col">
+    <button class="act-btn" data-key="LT開始" onclick="handleAction(this)">LT　開始</button>
+    <button class="act-btn" data-key="LT完了" onclick="handleAction(this)">LT　完了</button>
+    <button class="act-btn" data-key="挿管開始" onclick="handleAction(this)">挿管　開始</button>
+    <button class="act-btn" data-key="挿管完了" onclick="handleAction(this)">挿管　完了</button>
+  </div>
+
+  <div class="group-label">静脈路確保</div>
+  <div class="btn-group btn-2col">
+    <button class="act-btn" data-key="IV開始" onclick="handleAction(this)">IV　開始</button>
+    <button class="act-btn" data-key="IV完了" onclick="handleAction(this)">IV　完了</button>
+  </div>
+
+  <div class="group-label">薬剤投与</div>
+  <div class="btn-group btn-2col">
+    <button class="act-btn" data-key="アドレナリン投与" onclick="handleAction(this)">アドレナリン投与</button>
+    <button class="act-btn" data-key="ブドウ糖投与" onclick="handleAction(this)">ブドウ糖投与</button>
+  </div>
+
+</div>
+
+<!-- ===== LOG PANEL ===== -->
+<div id="log-panel">
+  <div id="log-header">
+    <span id="log-title">■ 活動ログ</span>
+    <button id="btn-clear-log" onclick="clearLog()">クリア</button>
+  </div>
+  <div id="log-list"></div>
+</div>
+
+<script>
+  // ===== STATE =====
+  let timerStart = null;
+  let timerPaused = null;
+  let timerInterval = null;
+  let isRunning = false;
+  let isStopped = false;
+
+  const pressCounts = {};
+  const milestoneTime = {};
+  let telFirstLogged = false;
+
+  const CIRCLE = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+
+  // ===== TIMER =====
+  function getElapsed() {
+    if (!timerStart) return 0;
+    const now = isStopped ? timerPaused : Date.now();
+    return now - timerStart;
+  }
+
+  function formatMs(ms) {
+    const total = Math.floor(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  function formatMsFull(ms) {
+    const total = Math.floor(ms / 1000);
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return (m > 0 ? m + '分' : '') + s + '秒';
+  }
+
+  function updateDisplay() {
+    document.getElementById('timer-display').textContent = formatMs(getElapsed());
+  }
+
+  function handleStart() {
+    const btn = document.getElementById('btn-start');
+
+    if (!isRunning && !isStopped) {
+      // First press → start
+      timerStart = Date.now();
+      isRunning = true;
+      timerInterval = setInterval(updateDisplay, 500);
+      btn.textContent = '■ 停止';
+      btn.className = 'running';
+      addLog('訓練開始', null, null);
+    } else if (isRunning) {
+      // Second press → stop
+      timerPaused = Date.now();
+      clearInterval(timerInterval);
+      isRunning = false;
+      isStopped = true;
+      btn.textContent = '訓練終了';
+      btn.className = 'stopped';
+      addLog('訓練終了', null, null);
+    }
+    // After stopped → no action (use reset)
+  }
+
+  function handleReset() {
+    clearInterval(timerInterval);
+    timerStart = null;
+    timerPaused = null;
+    isRunning = false;
+    isStopped = false;
+    telFirstLogged = false;
+
+    for (const k in pressCounts) delete pressCounts[k];
+    for (const k in milestoneTime) delete milestoneTime[k];
+
+    document.getElementById('timer-display').textContent = '00:00';
+    const btn = document.getElementById('btn-start');
+    btn.textContent = '▶ 訓練開始';
+    btn.className = '';
+
+    // Reset button states
+    document.querySelectorAll('.ms-btn, .act-btn').forEach(b => b.classList.remove('pressed'));
+
+    document.getElementById('log-list').innerHTML = '';
+  }
+
+  // ===== LOG =====
+  function addLog(label, intervalText, countNum) {
+    const list = document.getElementById('log-list');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'log-time';
+    timeEl.textContent = formatMs(getElapsed());
+
+    const contentEl = document.createElement('span');
+    contentEl.className = 'log-content';
+
+    let text = label;
+    if (countNum && countNum >= 2) {
+      text += '<span class="log-count">' + (CIRCLE[countNum - 1] || '×' + countNum) + '</span>';
+    }
+    contentEl.innerHTML = text;
+
+    entry.appendChild(timeEl);
+    entry.appendChild(contentEl);
+
+    if (intervalText) {
+      const ivEl = document.createElement('span');
+      ivEl.className = 'log-interval';
+      ivEl.textContent = intervalText;
+      entry.appendChild(ivEl);
+    }
+
+    list.appendChild(entry);
+    list.scrollTop = list.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('log-list').innerHTML = '';
+  }
+
+  // ===== MILESTONE BUTTONS =====
+  function handleMilestone(btn) {
+    const key = btn.dataset.key;
+    const elapsed = getElapsed();
+
+    pressCounts[key] = (pressCounts[key] || 0) + 1;
+    const count = pressCounts[key];
+
+    btn.classList.add('pressed');
+
+    let intervalText = null;
+
+    if (count === 1) {
+      milestoneTime[key] = elapsed;
+
+      // 接触→離脱 interval
+      if (key === '離脱' && milestoneTime['接触'] != null) {
+        const diff = elapsed - milestoneTime['接触'];
+        intervalText = '接触→離脱 ' + formatMsFull(diff);
+      }
+      // 離脱→収容 interval
+      if (key === '収容' && milestoneTime['離脱'] != null) {
+        const diff = elapsed - milestoneTime['離脱'];
+        intervalText = '離脱→収容 ' + formatMsFull(diff);
+      }
+      // 収容→現発 interval
+      if (key === '現発' && milestoneTime['収容'] != null) {
+        const diff = elapsed - milestoneTime['収容'];
+        intervalText = '収容→現発 ' + formatMsFull(diff);
+      }
+    }
+
+    addLog(key, intervalText, count);
+  }
+
+  // ===== ACTION BUTTONS =====
+  function handleAction(btn) {
+    const key = btn.dataset.key;
+    const elapsed = getElapsed();
+
+    pressCounts[key] = (pressCounts[key] || 0) + 1;
+    const count = pressCounts[key];
+
+    btn.classList.add('pressed');
+
+    let intervalText = null;
+
+    // 接触→TEL（初回のみ）
+    if (key === 'TEL' && count === 1 && !telFirstLogged && milestoneTime['接触'] != null) {
+      const diff = elapsed - milestoneTime['接触'];
+      intervalText = '接触→TEL ' + formatMsFull(diff);
+      telFirstLogged = true;
+    }
+
+    addLog(key, intervalText, count);
+  }
+</script>
+</body>
+</html>
